@@ -1,7 +1,7 @@
 {
   "name": "Foodie",
   "version": "1.0.0",
-  "description": "A GraphQL server example supporting Relay written with Play framework, Sangria and Slick.",
+  "description": "An example of GraphQL server supporting Relay modern written with Play framework, Sangria and Slick.",
   "scripts": {
     "start": "webpack-dev-server",
     "lint": "eslint src",
