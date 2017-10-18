@@ -3,13 +3,16 @@ package models
 import Tables._
 import com.typesafe.config.ConfigFactory
 import models.FoodieData.ConnectionFactory._
+import models.FoodieData.dbConfig
 import slick.basic.DatabaseConfig
 import slick.jdbc.JdbcProfile
 import slick.jdbc.JdbcBackend
 import sangria.relay._
 import sangria.relay.Connection._
+
 import scala.concurrent.Future
 import sangria.execution.UserFacingError
+
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object FoodieData {
@@ -46,7 +49,7 @@ object FoodieData {
         actualEndOffset = first.fold(endOffset)(f => math.min(endOffset, startOffset + f))
         actualStartOffset = last.fold(startOffset)(l => math.max(startOffset, actualEndOffset - l))
         val outQuery = if (first.isDefined) {
-          if (after.isDefined) if (afterOffset != 0) query.drop(afterOffset + 1) else query.take(0) else query.take(first.get)
+          if (after.isDefined) if (afterOffset + 1 != 0) query.drop(afterOffset + 1).take(first.get) else query.take(0) else query.take(first.get)
         } else if (last.isDefined) {
           if (before.isDefined) if (beforeOffset != 0) query.drop(beforeOffset - last.get).take(last.get) else query.take(0) else query.drop(Math.max(0, count - last.get)).take(last.get)
         } else query
@@ -71,27 +74,20 @@ object FoodieData {
       }
     }
 
-    def inProcess[E, T, V](query: Query[E, T, Seq], connectionArgs: ConnectionArgs, converter: Option[Seq[T] => Seq[V]]): Future[FoodieConnection[Option[Any]]] = {
-      db.run(query.length.result) flatMap {
-        count => {
-          val c = new ConnectionProcessor(query, connectionArgs, count)
-          db.run(c.getQuery.result) map {
-            v => {
-              val l = if (converter.isDefined) converter.get(v.toList) else v.toList
-              c.connection(l)
-            }
-          }
-        }
+    type RelayConnectionDBIOAction[T] = DBIOAction[FoodieConnection[Option[T]], NoStream, Effect.Read with Effect.Read]
+
+    def inProcess[E, T, V](query: Query[E, T, Seq], connectionArgs: ConnectionArgs, converter: Option[Seq[T] => Seq[V]]): RelayConnectionDBIOAction[Any] = {
+      query.length.result flatMap { count =>
+        val c = new ConnectionProcessor(query, connectionArgs, count)
+        c.getQuery.result map { v => c.connection(if (converter.isDefined) converter.get(v.toList) else v.toList) }
       }
     }
 
-    def process[E, T](query: Query[E, T, Seq], connectionArgs: ConnectionArgs): Future[FoodieConnection[Option[T]]] = {
-      inProcess(query, connectionArgs, None).asInstanceOf[Future[FoodieConnection[Option[T]]]]
-    }
+    def process[E, T](query: Query[E, T, Seq], connectionArgs: ConnectionArgs): Future[FoodieConnection[Option[T]]] =
+      db.run(inProcess(query, connectionArgs, None).asInstanceOf[RelayConnectionDBIOAction[T]].transactionally)
 
-    def process[E, T, V](query: Query[E, T, Seq], connectionArgs: ConnectionArgs, converter: Seq[T] => Seq[V]): Future[FoodieConnection[Option[V]]] = {
-      inProcess(query, connectionArgs, Some(converter)).asInstanceOf[Future[FoodieConnection[Option[V]]]]
-    }
+    def process[E, T, V](query: Query[E, T, Seq], connectionArgs: ConnectionArgs, converter: Seq[T] => Seq[V]): Future[FoodieConnection[Option[V]]] =
+      db.run(inProcess(query, connectionArgs, Some(converter)).asInstanceOf[RelayConnectionDBIOAction[V]].transactionally)
   }
 
   case class FoodData(id: String, name: String, image: Option[String] = None, type_id: String) extends Node
@@ -128,9 +124,8 @@ object FoodieData {
         if (v.nonEmpty) Some(foodConvert(v.head)) else None
       }
 
-    def getFoods(connectionArgs: ConnectionArgs): Future[FoodieConnection[Option[FoodData]]] = {
+    def getFoods(connectionArgs: ConnectionArgs): Future[FoodieConnection[Option[FoodData]]] =
       ConnectionFactory.process(Food sortBy (_.id.desc), connectionArgs, foodListConvert)
-    }
 
     private def typeConvert(`type`: TypeRow): TypeData = TypeData(id = `type`.id.toString, name = `type`.name)
 
@@ -141,9 +136,8 @@ object FoodieData {
         if (v.nonEmpty) Some(typeConvert(v.head)) else None
       }
 
-    def getTypes(connectionArgs: ConnectionArgs): Future[FoodieConnection[Option[TypeData]]] = {
+    def getTypes(connectionArgs: ConnectionArgs): Future[FoodieConnection[Option[TypeData]]] =
       ConnectionFactory.process(Type sortBy (_.id.desc), connectionArgs, typeListConvert)
-    }
 
     def loadFoodsByType(ids: Seq[String]): Future[Seq[FoodData]] = {
       val query = for {f <- Food if f.id inSet ids.map(_.toInt)} yield f
