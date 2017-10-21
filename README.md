@@ -3,7 +3,7 @@ An example of [GraphQL](https://facebook.github.io/graphql) server supporting [R
 
 ## Usage
 1. Create a database named _foodie_ and run `sbt "runMain models.mains.SlickDatabaseGenerator"` to generate the required tables in it.
-1. Run `sbt "runMain models.mains.GenerateSchemaGraphql"` to generate the GraphQL schema in the file, _ui/src/data/schema.graphql_. This file is required by [Relay Compiler](https://facebook.github.io/relay/docs/relay-compiler.html).
+1. Run `sbt "runMain models.mains.GenerateSchemaGraphql"` to generate the [GraphQL schema](https://facebook.github.io/relay/docs/relay-compiler.html#graphql-schema) in the file, _ui/src/data/schema.graphql_. This file is required by [Relay Compiler](https://facebook.github.io/relay/docs/relay-compiler.html).
 1. Run `cd ui` and run `npm install` to install the npm packages.
 1. Run `npm run relay` to generate the [files](https://facebook.github.io/relay/docs/relay-compiler.html#source-files) required by [Relay Babel plugin](https://facebook.github.io/relay/docs/babel-plugin-relay.html).
 1. Run `npm run build` to bundle the UI source code.
