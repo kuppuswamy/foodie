@@ -3,16 +3,13 @@ package models
 import Tables._
 import com.typesafe.config.ConfigFactory
 import models.FoodieData.ConnectionFactory._
-import models.FoodieData.dbConfig
 import slick.basic.DatabaseConfig
 import slick.jdbc.JdbcProfile
 import slick.jdbc.JdbcBackend
 import sangria.relay._
 import sangria.relay.Connection._
-
 import scala.concurrent.Future
 import sangria.execution.UserFacingError
-
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object FoodieData {
@@ -114,18 +111,18 @@ object FoodieData {
 
   case class DeletedFood(id: String)
 
-  class FoodieRepo() {
+  class FoodieRepo {
     private def foodConvert(food: FoodRow): FoodData = FoodData(id = food.id.toString, name = food.name, image = food.image, type_id = food.typeId.toString)
 
-    private def foodListConvert(list: Seq[FoodRow]): Seq[FoodData] = list.map(o => foodConvert(o))
+    private def foodListConvert(list: Seq[FoodRow]): Seq[FoodData] = list.map(foodConvert)
 
     def getFood(id: String): Future[Option[FoodData]] =
       db.run(Food.filter(_.id === id.toInt).take(1).result) map { v =>
         if (v.nonEmpty) Some(foodConvert(v.head)) else None
       }
 
-    def getFoods(connectionArgs: ConnectionArgs): Future[FoodieConnection[Option[FoodData]]] =
-      ConnectionFactory.process(Food sortBy (_.id.desc), connectionArgs, foodListConvert)
+    def getFoods(connectionArgs: ConnectionArgs, sort: Option[String]): Future[FoodieConnection[Option[FoodData]]] =
+      ConnectionFactory.process(Food sortBy { f => if (sort.contains("desc")) f.id.desc else f.id.asc }, connectionArgs, foodListConvert)
 
     private def typeConvert(`type`: TypeRow): TypeData = TypeData(id = `type`.id.toString, name = `type`.name)
 
@@ -136,22 +133,22 @@ object FoodieData {
         if (v.nonEmpty) Some(typeConvert(v.head)) else None
       }
 
-    def getTypes(connectionArgs: ConnectionArgs): Future[FoodieConnection[Option[TypeData]]] =
-      ConnectionFactory.process(Type sortBy (_.id.desc), connectionArgs, typeListConvert)
+    def getTypes(connectionArgs: ConnectionArgs, sort: Option[String]): Future[FoodieConnection[Option[TypeData]]] =
+      ConnectionFactory.process(Type sortBy { t => if (sort.contains("desc")) t.id.desc else t.id.asc }, connectionArgs, typeListConvert)
 
     def loadFoodsByType(ids: Seq[String]): Future[Seq[FoodData]] = {
       val query = for {f <- Food if f.id inSet ids.map(_.toInt)} yield f
-      db.run(query.result) map (v => foodListConvert(v))
+      db.run(query.result) map { v => foodListConvert(v) }
     }
 
     def loadFoodsByRelation(ids: Seq[String]): Future[Seq[FoodData]] = {
       val query = for {f <- Food if f.typeId inSet ids.map(_.toInt)} yield f
-      db.run(query.result) map (v => foodListConvert(v))
+      db.run(query.result) map { v => foodListConvert(v) }
     }
 
     def loadTypesByFood(ids: Seq[String]): Future[Seq[TypeData]] = {
       val query = for {t <- `Type` if t.id inSet ids.map(_.toInt)} yield t
-      db.run(query.result) map (v => typeListConvert(v))
+      db.run(query.result) map { v => typeListConvert(v) }
     }
 
     case class InvalidTypeName(message: String) extends Exception(message) with UserFacingError
@@ -160,17 +157,14 @@ object FoodieData {
 
     def addType(t: TypeAddInput): Future[Edge[Option[TypeData]]] = {
       if (t.name.trim.isEmpty) throw InvalidTypeName(invalidTypeNameMessage)
-      val typeWithId =
-        (Type returning Type.map(_.id)
-          into ((`type`, id) => `type`.copy(id = id))
-          ) += TypeRow(0, t.name)
-      db.run(typeWithId).flatMap(v => {
-        val typeData = typeConvert(v)
-        val position = sql"SELECT rank FROM (SELECT t.id, @rownum := @rownum + 1 AS rank FROM type t, (SELECT @rownum := -1) r ORDER BY t.id) t2 WHERE t2.id = ${v.id}".as[Int]
-        db.run(position).map(p => {
-          Edge(Some(typeData), offsetToCursor(p.head))
-        })
-      })
+      val dbAction = for {
+        typeWithId <- (Type returning Type.map(_.id) into ((`type`, id) => `type`.copy(id = id))) += TypeRow(0, t.name)
+        position <- sql"SELECT rank FROM (SELECT t.id, @rownum := @rownum + 1 AS rank FROM type t, (SELECT @rownum := -1) r ORDER BY t.id) t2 WHERE t2.id = ${typeWithId.id}".as[Int]
+      } yield (typeWithId, position)
+      db.run(dbAction.transactionally).map { r =>
+        val (typeWithId, position) = r
+        Edge(Some(typeConvert(typeWithId)), offsetToCursor(position.head))
+      }
     }
 
     case class InvalidTypeId(message: String) extends Exception(message) with UserFacingError
@@ -183,24 +177,28 @@ object FoodieData {
       if (globalId.isDefined) {
         val rawId = globalId.get.id.toInt
         val q = for {t <- Type if t.id === rawId} yield t.name
-        db.run(q.update(t.name)).map(r => {
+        db.run(q.update(t.name)).map { r =>
           if (r == 0) throw InvalidTypeId(invalidTypeIdMessage)
           else EditedType(TypeData(rawId.toString, t.name))
-        })
+        }
       } else {
         throw InvalidTypeId(invalidTypeIdMessage)
       }
     }
+
+    case class FoodsExist(message: String) extends Exception(message) with UserFacingError
+
+    def foodsExistMessage(typeId: String) = s"There are foods under type #$typeId. Please try again after deleting all foods of this type."
 
     def deleteType(t: TypeDeleteInput): Future[DeletedType] = {
       val globalId = GlobalId.fromGlobalId(t.id)
       if (globalId.isDefined) {
         val rawId = globalId.get.id.toInt
         val q = Type filter (_.id === rawId)
-        db.run(q.delete).map(r => {
+        db.run(q.delete).map { r =>
           if (r == 0) throw InvalidTypeId(invalidTypeIdMessage)
           else DeletedType(t.id)
-        })
+        } recover { case _: java.sql.SQLIntegrityConstraintViolationException => throw FoodsExist(foodsExistMessage(t.id)) }
       } else {
         throw InvalidTypeId(invalidTypeIdMessage)
       }
@@ -214,17 +212,14 @@ object FoodieData {
       if (t.name.trim.isEmpty) throw InvalidFoodName(invalidFoodNameMessage)
       val globalTypeId = GlobalId.fromGlobalId(t.type_id)
       if (globalTypeId.isEmpty) throw InvalidTypeId(invalidTypeIdMessage)
-      val foodWithId =
-        (Food returning Food.map(_.id)
-          into ((`food`, id) => `food`.copy(id = id))
-          ) += FoodRow(0, t.name, typeId = globalTypeId.get.id.toInt)
-      db.run(foodWithId).flatMap(v => {
-        val foodData = foodConvert(v)
-        val position = sql"SELECT rank FROM (SELECT t.id, @rownum := @rownum + 1 AS rank FROM food t, (SELECT @rownum := -1) r ORDER BY t.id) t2 WHERE t2.id = ${v.id}".as[Int]
-        db.run(position).map(p => {
-          Edge(Some(foodData), offsetToCursor(p.head))
-        })
-      })
+      val dbAction = for {
+        foodWithId <- (Food returning Food.map(_.id) into ((`food`, id) => `food`.copy(id = id))) += FoodRow(0, t.name, typeId = globalTypeId.get.id.toInt)
+        position <- sql"SELECT rank FROM (SELECT t.id, @rownum := @rownum + 1 AS rank FROM food t, (SELECT @rownum := -1) r ORDER BY t.id) t2 WHERE t2.id = ${foodWithId.id}".as[Int]
+      } yield (foodWithId, position)
+      db.run(dbAction.transactionally) map { r =>
+        val (foodWithId, position) = r
+        Edge(Some(foodConvert(foodWithId)), offsetToCursor(position.head))
+      }
     }
 
     case class InvalidFoodId(message: String) extends Exception(message) with UserFacingError
@@ -240,10 +235,10 @@ object FoodieData {
         val rawId = globalId.get.id.toInt
         val q = for {f <- Food if f.id === rawId} yield (f.name, f.typeId)
         val rawTypeId = globalTypeId.get.id
-        db.run(q.update((t.name, rawTypeId.toInt))).map(r => {
+        db.run(q.update((t.name, rawTypeId.toInt))).map { r =>
           if (r == 0) throw InvalidFoodId(invalidFoodIdMessage)
           else EditedFood(FoodData(rawId.toString, t.name, type_id = rawTypeId))
-        })
+        }
       } else {
         throw InvalidFoodId(invalidFoodIdMessage)
       }
@@ -254,10 +249,10 @@ object FoodieData {
       if (globalId.isDefined) {
         val rawId = globalId.get.id.toInt
         val q = Food filter (_.id === rawId)
-        db.run(q.delete).map(r => {
+        db.run(q.delete).map { r =>
           if (r == 0) throw InvalidFoodId(invalidFoodIdMessage)
           else DeletedFood(t.id)
-        })
+        }
       } else {
         throw InvalidFoodId(invalidFoodIdMessage)
       }

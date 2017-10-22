@@ -1,7 +1,4 @@
-import {
-  commitMutation,
-  graphql,
-} from 'react-relay';
+import {commitMutation, graphql} from 'react-relay';
 
 const mutation = graphql`
   mutation EditFoodMutation($input: FoodEditInput!) {
@@ -41,7 +38,7 @@ function commit(environment, food, type) {
       variables: {
         input: {name: food.name, id: food.id, type_id: type.id},
       },
-      optimisticResponse: () => getOptimisticResponse(food, type),
+      optimisticResponse: getOptimisticResponse(food, type),
     }
   );
 }

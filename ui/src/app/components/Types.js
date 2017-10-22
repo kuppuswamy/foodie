@@ -80,7 +80,7 @@ export default class Types extends React.Component {
         {
           types.edges.length ?
             types.edges.map((type, key) => (
-              <div className="field card" key={key}>
+              <div className="field card" key={type.node.id}>
                 <div className="card-content">
                   <p className="subtitle is-4">
                     {type.node.name}{' - #'}{type.node.id}

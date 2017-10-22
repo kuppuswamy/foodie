@@ -77,7 +77,7 @@ export default class Foods extends React.Component {
                       <option value={''}>Select a type</option>
                       {
                         types.edges.map((type, key) => (
-                          <option key={key} value={type.node.id}>{type.node.name}</option>
+                          <option key={type.node.id} value={type.node.id}>{type.node.name}</option>
                         ))
                       }
                     </select>
@@ -106,7 +106,7 @@ export default class Foods extends React.Component {
         {
           foods.edges.length ?
             foods.edges.map((food, key) => (
-              <div className="field card" key={key}>
+              <div className="field card" key={food.node.id}>
                 <div className="card-content">
                   <p className="subtitle is-4">
                     {food.node.name}{' - #'}{food.node.id}

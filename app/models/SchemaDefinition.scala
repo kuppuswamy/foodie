@@ -61,10 +61,12 @@ object SchemaDefinition {
     () => idFields[TypeData] ++
       fields[Unit, TypeData](
         Field("name", StringType, resolve = _.value.name),
-        Field("foods", ListType(FoodType), arguments = Connection.Args.All, resolve = c => foods.deferRelSeq(byType, c.value.id))
+        Field("foods", ListType(FoodType), resolve = c => foods.deferRelSeq(byType, c.value.id))
       ))
 
   val Id = Argument("id", StringType)
+
+  val Sort = Argument("sort", OptionInputType(StringType), "asc")
 
   val QueryType = ObjectType("Query", fields[FoodieRepo, Unit](
     Field("food", OptionType(FoodType),
@@ -74,8 +76,8 @@ object SchemaDefinition {
 
     Field("foods", OptionType(foodConnection),
       description = Some("Returns a list of all available foods."),
-      arguments = Connection.Args.All,
-      resolve = c => c.ctx.getFoods(ConnectionArgs(c))),
+      arguments = Sort :: Connection.Args.All,
+      resolve = c => c.ctx.getFoods(ConnectionArgs(c), c arg Sort)),
 
     Field("type", OptionType(TypeType),
       description = Some("Returns a type with specific `id`."),
@@ -84,8 +86,8 @@ object SchemaDefinition {
 
     Field("types", OptionType(typeConnection),
       description = Some("Returns a list of all available types."),
-      arguments = Connection.Args.All,
-      resolve = c => c.ctx.getTypes(ConnectionArgs(c))),
+      arguments = Sort :: Connection.Args.All,
+      resolve = c => c.ctx.getTypes(ConnectionArgs(c), c arg Sort)),
 
     nodeField
   ))

@@ -18,11 +18,11 @@ class Root extends React.Component {
         }
         render={
           ({error, props}) => {
-            let elems = [<Header/>];
+            let elems = [<Header key={1}/>];
             if (props)
-              elems.push(<Lists store={props}/>);
+              elems.push(<Lists key={2} store={props}/>);
             else
-              elems.push(<section className="hero is-medium">
+              elems.push(<section key={2} className="hero is-medium">
                 <div className="hero-body">
                   <div className="container has-text-centered">
                     <p className="title">
@@ -31,7 +31,7 @@ class Root extends React.Component {
                   </div>
                 </div>
               </section>);
-            elems.push(<Footer/>);
+            elems.push(<Footer key={3}/>);
             return elems;
           }
         }
