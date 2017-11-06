@@ -1,4 +1,4 @@
-name := """foodie-play"""
+name := """foodie"""
 organization := "com.melontric"
 
 version := "1.0-SNAPSHOT"
