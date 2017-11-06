@@ -24,9 +24,9 @@ libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play-slick" % "3.0.0",
   "com.typesafe.play" %% "play-slick-evolutions" % "3.0.0"
 )
-libraryDependencies += "org.sangria-graphql" %% "sangria" % "1.3.0"
+libraryDependencies += "org.sangria-graphql" %% "sangria" % "1.3.2"
 libraryDependencies += "org.sangria-graphql" %% "sangria-play-json" % "1.0.4"
-libraryDependencies += "org.sangria-graphql" %% "sangria-relay" % "1.3.0"
+libraryDependencies += "org.sangria-graphql" %% "sangria-relay" % "1.3.2"
 
 // Adds additional packages into Twirl
 //TwirlKeys.templateImports += "com.melontric.controllers._"
