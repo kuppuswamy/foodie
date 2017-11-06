@@ -31,7 +31,7 @@ object SchemaDefinition {
   val byType: Relation[FoodData, FoodData, String] = Relation[FoodData, String]("byType", c => Seq(c.type_id))
 
   val foods: Fetcher[FoodieRepo, FoodData, FoodData, String] = Fetcher.rel[FoodieRepo, FoodData, FoodData, String](
-    (repo, ids) => repo.loadFoodsByType(ids),
+    (repo, ids) => repo.loadFoods(ids),
     (repo, ids) => repo.loadFoodsByRelation(ids(byType)))(HasId(_.type_id))
 
   val resolver: DeferredResolver[FoodieRepo] =

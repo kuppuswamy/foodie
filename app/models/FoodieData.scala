@@ -136,7 +136,7 @@ object FoodieData {
     def getTypes(connectionArgs: ConnectionArgs, sort: Option[String]): Future[FoodieConnection[Option[TypeData]]] =
       ConnectionFactory.process(Type sortBy { t => if (sort.contains("desc")) t.id.desc else t.id.asc }, connectionArgs, typeListConvert)
 
-    def loadFoodsByType(ids: Seq[String]): Future[Seq[FoodData]] = {
+    def loadFoods(ids: Seq[String]): Future[Seq[FoodData]] = {
       val query = for {f <- Food if f.id inSet ids.map(_.toInt)} yield f
       db.run(query.result) map { v => foodListConvert(v) }
     }
