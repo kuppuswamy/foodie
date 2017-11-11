@@ -9,13 +9,24 @@ import sangria.execution.deferred._
 import sangria.marshalling.playJson._
 
 object SchemaDefinition {
+  val types: Fetcher[FoodieRepo, TypeData, TypeData, String] =
+    Fetcher.caching((ctx: FoodieRepo, ids: Seq[String]) => ctx.loadTypes(ids))(HasId(_.id))
+
+  val byType: Relation[FoodData, FoodData, String] = Relation[FoodData, String]("byType", c => Seq(c.type_id))
+
+  val foods: Fetcher[FoodieRepo, FoodData, FoodData, String] = Fetcher.relCaching[FoodieRepo, FoodData, FoodData, String](
+    (repo, ids) => repo.loadFoods(ids),
+    (repo, ids) => repo.loadFoodsByType(ids(byType)))(HasId(_.type_id))
+
+  val resolver: DeferredResolver[FoodieRepo] =
+    DeferredResolver.fetchers(foods, types)
 
   val NodeDefinition(nodeInterface, nodeField, nodesField) =
     Node.definition((globalId: GlobalId, c: Context[FoodieRepo, Unit]) ⇒ {
       if (globalId.typeName == "Food")
-        c.ctx.getFood(globalId.id)
+        foods.deferOpt(globalId.id)
       else if (globalId.typeName == "Type")
-        c.ctx.getType(globalId.id)
+        types.deferOpt(globalId.id)
       else
         None
     }, Node.possibleNodeTypes[FoodieRepo, Node](FoodType, TypeType))
@@ -24,18 +35,6 @@ object SchemaDefinition {
     Node.globalIdField,
     Field("rawId", StringType, resolve = ctx ⇒ implicitly[Identifiable[T]].id(ctx.value))
   )
-
-  val types: Fetcher[FoodieRepo, TypeData, TypeData, String] =
-    Fetcher((ctx: FoodieRepo, ids: Seq[String]) => ctx.loadTypesByFood(ids))(HasId(_.id))
-
-  val byType: Relation[FoodData, FoodData, String] = Relation[FoodData, String]("byType", c => Seq(c.type_id))
-
-  val foods: Fetcher[FoodieRepo, FoodData, FoodData, String] = Fetcher.rel[FoodieRepo, FoodData, FoodData, String](
-    (repo, ids) => repo.loadFoods(ids),
-    (repo, ids) => repo.loadFoodsByRelation(ids(byType)))(HasId(_.type_id))
-
-  val resolver: DeferredResolver[FoodieRepo] =
-    DeferredResolver.fetchers(foods, types)
 
   lazy val FoodType: ObjectType[Unit, FoodData] = ObjectType(
     "Food",
@@ -72,22 +71,22 @@ object SchemaDefinition {
     Field("food", OptionType(FoodType),
       description = Some("Returns a food with specific `id`."),
       arguments = Id :: Nil,
-      resolve = c => c.ctx.getFood(c arg Id)),
+      resolve = c => foods.deferOpt(c arg Id)),
 
     Field("foods", OptionType(foodConnection),
       description = Some("Returns a list of all available foods."),
       arguments = Sort :: Connection.Args.All,
-      resolve = c => c.ctx.getFoods(ConnectionArgs(c), c arg Sort)),
+      resolve = c => c.ctx.loadFoodConnection(ConnectionArgs(c), c arg Sort)),
 
     Field("type", OptionType(TypeType),
       description = Some("Returns a type with specific `id`."),
       arguments = Id :: Nil,
-      resolve = c => c.ctx.getType(c arg Id)),
+      resolve = c => types.deferOpt(c arg Id)),
 
     Field("types", OptionType(typeConnection),
       description = Some("Returns a list of all available types."),
       arguments = Sort :: Connection.Args.All,
-      resolve = c => c.ctx.getTypes(ConnectionArgs(c), c arg Sort)),
+      resolve = c => c.ctx.loadTypeConnection(ConnectionArgs(c), c arg Sort)),
 
     nodeField
   ))

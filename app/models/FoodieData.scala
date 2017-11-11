@@ -116,24 +116,14 @@ object FoodieData {
 
     private def foodListConvert(list: Seq[FoodRow]): Seq[FoodData] = list.map(foodConvert)
 
-    def getFood(id: String): Future[Option[FoodData]] =
-      db.run(Food.filter(_.id === id.toInt).take(1).result) map { v =>
-        if (v.nonEmpty) Some(foodConvert(v.head)) else None
-      }
-
-    def getFoods(connectionArgs: ConnectionArgs, sort: Option[String]): Future[FoodieConnection[Option[FoodData]]] =
+    def loadFoodConnection(connectionArgs: ConnectionArgs, sort: Option[String]): Future[FoodieConnection[Option[FoodData]]] =
       ConnectionFactory.process(Food sortBy { f => if (sort.contains("desc")) f.id.desc else f.id.asc }, connectionArgs, foodListConvert)
 
     private def typeConvert(`type`: TypeRow): TypeData = TypeData(id = `type`.id.toString, name = `type`.name)
 
     private def typeListConvert(list: Seq[TypeRow]): Seq[TypeData] = list.map(o => typeConvert(o))
 
-    def getType(id: String): Future[Option[TypeData]] =
-      db.run(Type.filter(_.id === id.toInt).take(1).result) map { v =>
-        if (v.nonEmpty) Some(typeConvert(v.head)) else None
-      }
-
-    def getTypes(connectionArgs: ConnectionArgs, sort: Option[String]): Future[FoodieConnection[Option[TypeData]]] =
+    def loadTypeConnection(connectionArgs: ConnectionArgs, sort: Option[String]): Future[FoodieConnection[Option[TypeData]]] =
       ConnectionFactory.process(Type sortBy { t => if (sort.contains("desc")) t.id.desc else t.id.asc }, connectionArgs, typeListConvert)
 
     def loadFoods(ids: Seq[String]): Future[Seq[FoodData]] = {
@@ -141,12 +131,12 @@ object FoodieData {
       db.run(query.result) map { v => foodListConvert(v) }
     }
 
-    def loadFoodsByRelation(ids: Seq[String]): Future[Seq[FoodData]] = {
+    def loadFoodsByType(ids: Seq[String]): Future[Seq[FoodData]] = {
       val query = for {f <- Food if f.typeId inSet ids.map(_.toInt)} yield f
       db.run(query.result) map { v => foodListConvert(v) }
     }
 
-    def loadTypesByFood(ids: Seq[String]): Future[Seq[TypeData]] = {
+    def loadTypes(ids: Seq[String]): Future[Seq[TypeData]] = {
       val query = for {t <- `Type` if t.id inSet ids.map(_.toInt)} yield t
       db.run(query.result) map { v => typeListConvert(v) }
     }
