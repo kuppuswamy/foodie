@@ -4,4 +4,5 @@ npm-debug.log
 dist
 /.idea
 /src/data/schema.graphql
+/src/data/schema.json
 __generated__/
