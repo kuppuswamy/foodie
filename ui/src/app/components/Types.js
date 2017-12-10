@@ -7,7 +7,9 @@ export default class Types extends React.Component {
   state = {
     text: '',
     editID: null,
-    showModal: false
+    showModal: false,
+    sort: 'desc',
+    loadingSort: false
   };
   _handleChange = (e) => {
     this.setState({text: e.target.value});
@@ -40,8 +42,20 @@ export default class Types extends React.Component {
       if (this.state.editID) this._onSave(); else this._onAdd();
     }
   };
+  _getNextSort = sort => (sort === 'desc' ? 'asc' : 'desc');
+  _sort = sort => {
+    this.setState({loadingSort: true});
+    const refetchVariables = fragmentVariables => ({
+      sort: sort,
+    });
+    this.props.relay.refetch(refetchVariables, null, error => {
+      if (!error) this.setState({sort: this._getNextSort(this.state.sort), loadingSort: false});
+      else this.setState({loadingSort: true});
+    });
+  };
   render = () => {
-    let {types} = this.props;
+    let {typeStore} = this.props;
+    let {types} = typeStore;
     return (
       <div>
         <div className={`modal ${this.state.showModal ? 'is-active' : ''}`}>
@@ -72,9 +86,13 @@ export default class Types extends React.Component {
           </div>
         </div>
         <h1 className="title">Types</h1>
-        <div className="field">
+        <div className="field is-grouped">
           <p className="control">
             <a className="button is-warning" onClick={e => this._showModal()}>Add</a>
+          </p>
+          <p className="control">
+            <a className={`button is-capitalized${this.state.loadingSort ? ' is-loading' : ''}`}
+               onClick={e => this._sort(this._getNextSort(this.state.sort))}>{this.state.sort === 'desc' ? 'latest' : 'oldest'}</a>
           </p>
         </div>
         {

@@ -8,7 +8,9 @@ export default class Foods extends React.Component {
     text: '',
     editID: null,
     typeID: null,
-    showModal: false
+    showModal: false,
+    sort: 'desc',
+    loadingSort: false
   };
   _getStore = () => this.props.relay.environment.getStore().getSource();
   _handleTextChange = (e) => {
@@ -52,8 +54,21 @@ export default class Foods extends React.Component {
       if (this.state.editID) this._onSave(); else this._onAdd();
     }
   };
+  _getNextSort = sort => (sort === 'desc' ? 'asc' : 'desc');
+  _sort = sort => {
+    this.setState({loadingSort: true});
+    const refetchVariables = fragmentVariables => ({
+      sort: sort,
+    });
+    this.props.relay.refetch(refetchVariables, null, error => {
+      if (!error) this.setState({sort: this._getNextSort(this.state.sort), loadingSort: false});
+      else this.setState({loadingSort: false});
+    });
+  };
   render = () => {
-    let {foods, types} = this.props;
+    let {foodStore, typeStore} = this.props;
+    let {foods} = foodStore;
+    let types = typeStore.typesForAddFood;
     return (
       <div>
         <div className={`modal ${this.state.showModal ? 'is-active' : ''}`}>
@@ -98,9 +113,13 @@ export default class Foods extends React.Component {
           </div>
         </div>
         <h1 className="title">Foods</h1>
-        <div className="field">
+        <div className="field is-grouped">
           <p className="control">
             <a className="button is-warning" onClick={e => this._showModal()}>Add</a>
+          </p>
+          <p className="control">
+            <a className={`button is-capitalized${this.state.loadingSort ? ' is-loading' : ''}`}
+               onClick={e => this._sort(this._getNextSort(this.state.sort))}>{this.state.sort === 'desc' ? 'latest' : 'oldest'}</a>
           </p>
         </div>
         {
