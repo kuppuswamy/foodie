@@ -12,14 +12,16 @@ class Root extends React.Component {
     return (
       <QueryRenderer
         environment={environment}
-        query={graphql`
-            query RootQuery {
+        query={
+          graphql`
+            query RootQuery($count: Int!, $cursor: String, $sort: String) {
               ...Foods_foodStore
               ...Foods_typeStore
               ...Types_typeStore
             }
           `
         }
+        variables={{count: 2, cursor: null, sort: 'desc'}}
         render={
           ({error, props}) => {
             let elems = [<Header key={1}/>];
@@ -41,15 +43,17 @@ class Root extends React.Component {
                 </Aux>
               );
             else
-              elems.push(<section key={2} className="hero is-medium">
-                <div className="hero-body">
-                  <div className="container has-text-centered">
-                    <p className="title">
-                      Loading...
-                    </p>
+              elems.push(
+                <section key={2} className="hero is-medium">
+                  <div className="hero-body">
+                    <div className="container has-text-centered">
+                      <p className="title">
+                        Loading...
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </section>);
+                </section>
+              );
             elems.push(<Footer key={4}/>);
             return elems;
           }

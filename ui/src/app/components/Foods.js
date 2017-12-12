@@ -2,6 +2,7 @@ import React from 'react';
 import AddFoodMutation from '../mutations/AddFoodMutation';
 import EditFoodMutation from '../mutations/EditFoodMutation';
 import DeleteFoodMutation from '../mutations/DeleteFoodMutation';
+import {COUNT} from '../containers/Foods';
 
 export default class Foods extends React.Component {
   state = {
@@ -10,7 +11,8 @@ export default class Foods extends React.Component {
     typeID: null,
     showModal: false,
     sort: 'desc',
-    loadingSort: false
+    loadingSort: false,
+    loadingMore: false
   };
   _getStore = () => this.props.relay.environment.getStore().getSource();
   _handleTextChange = (e) => {
@@ -57,13 +59,25 @@ export default class Foods extends React.Component {
   _getNextSort = sort => (sort === 'desc' ? 'asc' : 'desc');
   _sort = sort => {
     this.setState({loadingSort: true});
-    const refetchVariables = fragmentVariables => ({
-      sort: sort,
-    });
-    this.props.relay.refetch(refetchVariables, null, error => {
+    const refetchVariables = {
+      sort: sort
+    };
+    this.props.relay.refetchConnection(COUNT, error => {
       if (!error) this.setState({sort: this._getNextSort(this.state.sort), loadingSort: false});
       else this.setState({loadingSort: false});
-    });
+    }, refetchVariables);
+  };
+  _loadMore = () => {
+    if (!this.props.relay.hasMore() || this.props.relay.isLoading()) {
+      return;
+    }
+    this.setState({loadingMore: true});
+    this.props.relay.loadMore(
+      COUNT,
+      () => {
+        this.setState({loadingMore: false});
+      },
+    );
   };
   render = () => {
     let {foodStore, typeStore} = this.props;
@@ -149,6 +163,13 @@ export default class Foods extends React.Component {
               </div>
             )
         }
+        <div className="field">
+          <div className="buttons has-text-centered">
+            <button disabled={!this.props.relay.hasMore()} onClick={this._loadMore}
+                    className={`button${this.state.loadingMore ? ' is-loading' : ''}`}>More
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
