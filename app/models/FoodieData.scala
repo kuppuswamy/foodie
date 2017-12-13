@@ -48,7 +48,7 @@ object FoodieData {
         val outQuery = if (first.isDefined) {
           if (after.isDefined) if (afterOffset + 1 != 0) query.drop(afterOffset + 1).take(first.get) else query.take(0) else query.take(first.get)
         } else if (last.isDefined) {
-          if (before.isDefined) if (beforeOffset != 0) query.drop(beforeOffset - last.get).take(last.get) else query.take(0) else query.drop(Math.max(0, count - last.get)).take(last.get)
+          if (before.isDefined) if (beforeOffset != 0) query.drop(Math.max(0, beforeOffset - last.get)).take(Math.min(last.get, beforeOffset)) else query.take(0) else query.drop(Math.max(0, count - last.get)).take(last.get)
         } else query
         outQuery
       }
