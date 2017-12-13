@@ -1,13 +1,27 @@
 import Foods from '../components/Foods';
-import {createPaginationContainer, graphql} from 'react-relay';
+import {createRefetchContainer, graphql} from 'react-relay';
 
 export const COUNT = 2;
 
-export default createPaginationContainer(Foods,
+export default createRefetchContainer(Foods,
   {
     foodStore: graphql`
-      fragment Foods_foodStore on Query {
-        foods (first: $count, after: $cursor, sort: $sort) @connection(key: "FoodsList_foods", filters: []) {
+      fragment Foods_foodStore on Query
+      @argumentDefinitions(
+        first: {type: "Int", defaultValue: 2},
+        after: {type: "String"},
+        last: {type: "Int"}
+        before: {type: "String"},
+        sort: {type: "String", defaultValue: "desc"}
+      ) {
+        foods (first: $first, after: $after, last: $last, before: $before, sort: $sort) {
+          pageInfo {
+            hasNextPage
+            hasPreviousPage
+            startCursor
+            endCursor
+          }
+          count
           edges {
             node {
               name
@@ -36,28 +50,9 @@ export default createPaginationContainer(Foods,
       }
     `
   },
-  {
-    direction: 'forward',
-    getConnectionFromProps(props) {
-      return props.foodStore && props.foodStore.foods;
-    },
-    getFragmentVariables(prevVars, totalCount) {
-      return {
-        ...prevVars,
-        count: totalCount,
-      };
-    },
-    getVariables(props, {count, cursor}, fragmentVariables) {
-      return {
-        count,
-        cursor,
-        sort: fragmentVariables.sort,
-      };
-    },
-    query: graphql`
-      query FoodsPaginationQuery($count: Int!, $cursor: String, $sort: String) {
-        ...Foods_foodStore
-      }
-    `
-  }
+  graphql`
+    query FoodsPaginationQuery($first: Int, $after: String, $last: Int, $before: String, $sort: String) {
+      ...Foods_foodStore @arguments(first: $first, after: $after, last: $last, before: $before, sort: $sort)
+    }
+  `
 );

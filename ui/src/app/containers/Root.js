@@ -14,14 +14,13 @@ class Root extends React.Component {
         environment={environment}
         query={
           graphql`
-            query RootQuery($count: Int!, $cursor: String, $sort: String) {
+            query RootQuery {
               ...Foods_foodStore
               ...Foods_typeStore
               ...Types_typeStore
             }
           `
         }
-        variables={{count: 2, cursor: null, sort: 'desc'}}
         render={
           ({error, props}) => {
             let elems = [<Header key={1}/>];

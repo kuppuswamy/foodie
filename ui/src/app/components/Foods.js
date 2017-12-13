@@ -12,7 +12,10 @@ export default class Foods extends React.Component {
     showModal: false,
     sort: 'desc',
     loadingSort: false,
-    loadingMore: false
+    hasPreviousPage: false,
+    hasNextPage: false,
+    loadingNextPage: false,
+    loadingPreviousPage: false
   };
   _getStore = () => this.props.relay.environment.getStore().getSource();
   _handleTextChange = (e) => {
@@ -59,25 +62,53 @@ export default class Foods extends React.Component {
   _getNextSort = sort => (sort === 'desc' ? 'asc' : 'desc');
   _sort = sort => {
     this.setState({loadingSort: true});
-    const refetchVariables = {
-      sort: sort
-    };
-    this.props.relay.refetchConnection(COUNT, error => {
+    const refetchVariables = fragmentVariables => ({
+      sort: sort,
+      first: COUNT,
+      after: null,
+      last: null,
+      before: null
+    });
+    this.props.relay.refetch(refetchVariables, null, error => {
       if (!error) this.setState({sort: this._getNextSort(this.state.sort), loadingSort: false});
-      else this.setState({loadingSort: false});
-    }, refetchVariables);
+      else this.setState({loadingSort: true});
+    });
   };
-  _loadMore = () => {
-    if (!this.props.relay.hasMore() || this.props.relay.isLoading()) {
-      return;
-    }
-    this.setState({loadingMore: true});
-    this.props.relay.loadMore(
-      COUNT,
-      () => {
-        this.setState({loadingMore: false});
-      },
-    );
+  _loadNext = (endCursor) => {
+    this.setState({loadingNextPage: true});
+    const refetchVariables = fragmentVariables => ({
+      first: COUNT,
+      after: endCursor,
+      last: null,
+      before: null,
+      sort: this.state.sort
+    });
+    this.props.relay.refetch(refetchVariables, null, error => {
+      if (!error) this.setState({
+        hasNextPage: this.props.foodStore.foods.pageInfo.hasNextPage,
+        hasPreviousPage: true,
+        loadingNextPage: false
+      });
+      else this.setState({loadingNextPage: false});
+    });
+  };
+  _loadPrevious = (startCursor) => {
+    this.setState({loadingPreviousPage: true});
+    const refetchVariables = fragmentVariables => ({
+      first: null,
+      after: null,
+      last: COUNT,
+      before: startCursor,
+      sort: this.state.sort
+    });
+    this.props.relay.refetch(refetchVariables, null, error => {
+      if (!error) this.setState({
+        hasPreviousPage: this.props.foodStore.foods.pageInfo.hasPreviousPage,
+        hasNextPage: true,
+        loadingPreviousPage: false
+      });
+      else this.setState({loadingPreviousPage: false});
+    });
   };
   render = () => {
     let {foodStore, typeStore} = this.props;
@@ -163,12 +194,21 @@ export default class Foods extends React.Component {
               </div>
             )
         }
-        <div className="field">
-          <div className="buttons has-text-centered">
-            <button disabled={!this.props.relay.hasMore()} onClick={this._loadMore}
-                    className={`button${this.state.loadingMore ? ' is-loading' : ''}`}>More
+        <div className="field is-grouped">
+          <p className="control">
+            <button onClick={e => this._loadPrevious(foods.pageInfo.startCursor)}
+                    className={`button${this.state.loadingPreviousPage ? ' is-loading' : ''}`}
+                    disabled={!foods.pageInfo.hasPreviousPage && !this.state.hasPreviousPage}>
+              Previous
             </button>
-          </div>
+          </p>
+          <p className="control">
+            <button onClick={e => this._loadNext(foods.pageInfo.endCursor)}
+                    className={`button${this.state.loadingNextPage ? ' is-loading' : ''}`}
+                    disabled={!foods.pageInfo.hasNextPage && !this.state.hasNextPage}>
+              Next
+            </button>
+          </p>
         </div>
       </div>
     );
