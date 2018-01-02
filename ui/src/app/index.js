@@ -3,6 +3,7 @@ import React from 'react';
 import {render} from 'react-dom';
 import Root from './containers/Root'
 import {AppContainer} from 'react-hot-loader'
+import '../scss/main.scss'
 
 const _render = Component => {
   render(

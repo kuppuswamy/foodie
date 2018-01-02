@@ -8,7 +8,7 @@ module.exports = {
   entry: {
     app: ['./src/app/index'],
     graphiql: ['./src/graphiql/index'],
-    vendor: ["babel-polyfill", "react-hot-loader/patch", ...Object.keys(vendors).filter(v => !vendorFilters.includes(v))]
+    vendor: ['babel-polyfill', 'react-hot-loader/patch', ...Object.keys(vendors).filter(v => !vendorFilters.includes(v))]
   },
   output: {
     path: path.join(__dirname, '../public/javascripts/bundles'),
@@ -29,6 +29,28 @@ module.exports = {
       test: /\.js?$/,
       loaders: ['babel-loader'],
       include: path.join(__dirname, 'src')
+    }, {
+      test: /\.(scss)$/,
+      use: [{
+        loader: 'style-loader',
+      }, {
+        loader: 'css-loader',
+      }, {
+        loader: 'postcss-loader',
+        options: {
+          plugins: function () {
+            return [
+              require('precss'),
+              require('autoprefixer')
+            ];
+          }
+        }
+      }, {
+        loader: 'sass-loader',
+        options: {
+          outputStyle: 'compressed'
+        }
+      }]
     }]
   },
   devServer: {

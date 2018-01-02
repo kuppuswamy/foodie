@@ -7,4 +7,6 @@ target
 /.settings
 /RUNNING_PID
 /public/javascripts/bundles
+/public/stylesheets/main.css
+/public/stylesheets/main.css.map
 /script.sc
