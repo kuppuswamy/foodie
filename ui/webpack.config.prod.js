@@ -24,7 +24,8 @@ module.exports = {
       compress: {
         warnings: false
       },
-      comments: false
+      comments: false,
+      mangle: false
     }),
     new webpack.ContextReplacementPlugin(
       /graphql-language-service-interface[\\/]dist$/,
