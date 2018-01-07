@@ -8,7 +8,7 @@ module.exports = {
   entry: {
     app: ['./src/app/index'],
     graphiql: ['./src/graphiql/index'],
-    vendor: ["babel-polyfill", "react-hot-loader/patch", ...Object.keys(vendors).filter(v => !vendorFilters.includes(v))]
+    vendor: ['babel-polyfill', 'react-hot-loader/patch', ...Object.keys(vendors).filter(v => !vendorFilters.includes(v))]
   },
   output: {
     path: path.join(__dirname, '../public/javascripts/bundles'),
