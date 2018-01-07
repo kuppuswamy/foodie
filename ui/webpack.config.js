@@ -29,28 +29,6 @@ module.exports = {
       test: /\.js?$/,
       loaders: ['babel-loader'],
       include: path.join(__dirname, 'src')
-    }, {
-      test: /\.(scss)$/,
-      use: [{
-        loader: 'style-loader',
-      }, {
-        loader: 'css-loader',
-      }, {
-        loader: 'postcss-loader',
-        options: {
-          plugins: function () {
-            return [
-              require('precss'),
-              require('autoprefixer')
-            ];
-          }
-        }
-      }, {
-        loader: 'sass-loader',
-        options: {
-          outputStyle: 'compressed'
-        }
-      }]
     }]
   },
   devServer: {
