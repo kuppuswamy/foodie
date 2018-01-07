@@ -62,9 +62,9 @@ export default class Types extends React.Component {
             <footer className="modal-card-foot">
               {
                 this.state.editID ? (
-                  <button className="button is-danger" onClick={e => this._onSave()}>Save</button>
+                  <button className="button is-primary" onClick={e => this._onSave()}>Save</button>
                 ) : (
-                  <button className="button is-danger" onClick={e => this._onAdd()}>Add</button>
+                  <button className="button is-primary" onClick={e => this._onAdd()}>Add</button>
                 )
               }
               <button className="button" onClick={e => this._onCancel()}>Cancel</button>
